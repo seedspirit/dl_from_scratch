@@ -1,0 +1,12 @@
+[project]
+name = "deep-learning-from-scratch"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "numpy>=2.5.4",
+    "pydantic>=2.14.1",
+    "ruff>=0.17.1",
+    "torch>=2.14.1",
+]
