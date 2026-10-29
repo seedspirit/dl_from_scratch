@@ -1,5 +1,7 @@
 import pickle
 
+from base.profiling import timed
+
 
 def merge(ids, pair, new_id):
     merged_ids = []
@@ -31,6 +33,7 @@ class BPETokenizer:
             ids = merge(ids, merge_pair, new_id)
         return ids
 
+    @timed("tokenize")
     def encode(self, input_text):
         import re
 

@@ -2,6 +2,7 @@ import torch
 import torch.nn.functional as F
 
 from base.model import GPT
+from base.profiling import timed
 
 
 def token_probs(model: GPT, ids: torch.Tensor) -> torch.Tensor:
@@ -11,6 +12,7 @@ def token_probs(model: GPT, ids: torch.Tensor) -> torch.Tensor:
     return probs.gather(dim=-1, index=next_ids).squeeze(-1)
 
 
+@timed("loss")
 def grpo_loss(
     model: GPT,
     old_model: GPT,

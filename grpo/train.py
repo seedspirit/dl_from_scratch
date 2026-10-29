@@ -1,3 +1,4 @@
+import time
 from itertools import cycle
 
 import matplotlib.pyplot as plt
@@ -6,11 +7,12 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from base.model import GPT
+from base.profiling import report, set_enabled, timer
 from base.tokenizer import BPETokenizer
 from base.utils import get_device
 from grpo.dataset import GRPODataset
 from grpo.loss import grpo_loss
-from grpo.rollout import calculate_reward, collect_rollout, generate_response
+from grpo.rollout import calculate_reward, collect_rollout, generate_responses
 
 # 설정
 device = get_device()
@@ -25,20 +27,23 @@ eval_interval = 10
 epsilon = 0.2  # 클리핑 범위
 group_size = 8  # 그룹 크기
 batch_size = 32
+profile = True  # True면 단계별 소요 시간을 측정해서 마지막에 출력
 
 
 def evaluate(model: GPT, tokenizer: BPETokenizer, dataset: GRPODataset) -> float:
     """전체 문제를 greedy로 풀어 정답률(%)을 반환."""
-    model.eval()
+    prompts = [prompt for prompt, _ in dataset.data]
+    responses = generate_responses(model, tokenizer, prompts, temperature=0)
+    model.train()  # generate_batch()가 eval 모드로 바꾸므로 되돌리기
     correct = sum(
-        calculate_reward(gt, generate_response(model, tokenizer, prompt, temperature=0))
-        for prompt, gt in dataset.data
+        calculate_reward(gt, response)
+        for (_, gt), response in zip(dataset.data, responses, strict=True)
     )
-    model.train()
     return correct / len(dataset) * 100
 
 
 # 초기화
+set_enabled(profile)
 tokenizer = BPETokenizer.load_from(tokenizer_path)
 model = GPT.load_from(sft_model_path, device=device)
 old_model = GPT.load_from(sft_model_path, device=device)  # 옛 모델
@@ -51,6 +56,7 @@ data_iter = cycle(DataLoader(dataset, batch_size=batch_size, shuffle=True))
 accuracies: list[float] = []
 accuracy = 0.0
 pbar = tqdm(range(max_iters))
+loop_start = time.perf_counter()
 
 for i in pbar:
     # ❶ 배치 데이터 가져오기
@@ -72,9 +78,10 @@ for i in pbar:
     for _ in range(n_update_per_generation):
         optimizer.zero_grad()
         loss = grpo_loss(model, old_model, ids, mask, advantages, epsilon)
-        loss.backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)  # 기울기 클리핑
-        optimizer.step()
+        with timer("update"):
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)  # 기울기 클리핑
+            optimizer.step()
 
     # ❻ 주기적으로 평가
     if i % eval_interval == 0:
@@ -82,6 +89,10 @@ for i in pbar:
         accuracies.append(accuracy)
 
     pbar.set_postfix({"loss": f"{loss.item():.4f}", "acc": f"{accuracy:.1f}%"})
+
+# 단계별 소요 시간
+if profile:
+    print(report(time.perf_counter() - loop_start))
 
 # 학습된 모델 저장
 model.save(grpo_model_save_path)

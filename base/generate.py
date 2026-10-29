@@ -3,6 +3,7 @@ from typing import Protocol
 import torch
 
 from base.model import GPT
+from base.profiling import timed
 from base.tokenizer import BPETokenizer
 from base.utils import get_device
 
@@ -50,6 +51,73 @@ def generate(
 
     output = tokenizer.decode(generated_ids[0].tolist())
     return output
+
+
+@torch.no_grad()
+def generate_batch(
+    model: GPT,
+    tokenizer: Tokenizer,
+    prompts: list[str],
+    max_token_length: int = 50,
+    temperature: float = 1.0,
+) -> list[str]:
+    """여러 프롬프트를 한 번에 생성해서 generate()와 같은 형식(프롬프트 + 응답)으로 반환.
+
+    모델에 패딩 마스크가 없으므로 토큰 길이가 같은 프롬프트끼리 묶어서 배치로 처리한다.
+    """
+    model.eval()
+    device = next(model.parameters()).device
+    # 같은 프롬프트가 반복되는 경우가 많으므로(GRPO 그룹) 고유 프롬프트만 토큰화
+    unique_ids = {prompt: tokenizer.encode(prompt) for prompt in set(prompts)}
+    encoded = [unique_ids[prompt] for prompt in prompts]
+
+    # 토큰 길이별로 프롬프트 인덱스 묶기
+    groups: dict[int, list[int]] = {}
+    for idx, prompt_ids in enumerate(encoded):
+        groups.setdefault(len(prompt_ids), []).append(idx)
+
+    outputs = [""] * len(prompts)
+    for indices in groups.values():
+        ids = torch.tensor([encoded[i] for i in indices], dtype=torch.long, device=device)
+        new_ids = _sample_batch(model, ids, tokenizer.end_token_id, max_token_length, temperature)
+        for i, row in zip(indices, new_ids, strict=True):
+            outputs[i] = tokenizer.decode(encoded[i] + row)
+    return outputs
+
+
+@timed("generate")
+def _sample_batch(
+    model: GPT,
+    ids: torch.Tensor,
+    end_token_id: int,
+    max_token_length: int,
+    temperature: float,
+) -> list[list[int]]:
+    """(B, L) 프롬프트에서 행마다 종료 토큰 전까지의 새 토큰 ID 리스트를 반환."""
+    finished = torch.zeros(ids.size(0), dtype=torch.bool, device=ids.device)
+    new_tokens: list[torch.Tensor] = []
+
+    for _ in range(max_token_length):
+        logits = model(ids[:, -model.max_context_len :])[:, -1, :]
+        if temperature == 0:
+            next_id = logits.argmax(dim=-1, keepdim=True)
+        else:
+            probs = torch.softmax(logits / temperature, dim=-1)
+            next_id = torch.multinomial(probs, num_samples=1)
+
+        finished |= next_id.squeeze(-1) == end_token_id
+        if finished.all():  # 모든 행이 종료 토큰을 냈으면 중단
+            break
+
+        ids = torch.cat([ids, next_id], dim=-1)
+        new_tokens.append(next_id)
+
+    if not new_tokens:
+        return [[] for _ in range(ids.size(0))]
+
+    # 행마다 첫 종료 토큰 이후는 버리기
+    rows = torch.cat(new_tokens, dim=-1).tolist()
+    return [row[: row.index(end_token_id)] if end_token_id in row else row for row in rows]
 
 
 if __name__ == "__main__":
