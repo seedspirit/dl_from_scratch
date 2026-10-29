@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 from itertools import cycle
 from typing import cast
 
@@ -7,11 +5,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn.functional as F
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from model import GPT, BlockConfig, GPTConfig
-from utils import get_device
+from base.model import GPT, BlockConfig, GPTConfig
+from base.utils import get_device
+from pretrain.dataset import TokenDataset
 
 # 설정
 device = get_device()
@@ -30,24 +29,6 @@ n_head = 6
 n_layer = 6
 ff_dim = 4 * embed_dim  # 일반적으로 임베딩 차원의 4배로 설정
 dropout_rate = 0.1
-
-
-class TokenDataset(Dataset):
-    tokens: torch.Tensor
-    context_len: int
-
-    def __init__(self, tokens: torch.Tensor, context_len: int) -> None:
-        self.tokens = tokens
-        self.context_len = context_len
-
-    def __len__(self) -> int:
-        return len(self.tokens) - self.context_len
-
-    def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
-        x = self.tokens[idx : idx + self.context_len]
-        y = self.tokens[idx + 1 : idx + 1 + self.context_len]
-        return x, y
-
 
 # nn.Embedding은 int64 인덱스를 받으므로 uint16 토큰을 변환
 ids = torch.from_numpy(np.fromfile(data_path, dtype=np.uint16).astype(np.int64))

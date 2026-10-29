@@ -2,7 +2,9 @@ from typing import Protocol
 
 import torch
 
-from model import GPT
+from base.model import GPT
+from base.tokenizer import BPETokenizer
+from base.utils import get_device
 
 
 class Tokenizer(Protocol):
@@ -48,3 +50,26 @@ def generate(
 
     output = tokenizer.decode(generated_ids[0].tolist())
     return output
+
+
+if __name__ == "__main__":
+    device = get_device()
+    model_path = "./codebot/model_pretrain.pt"
+    tokenizer_path = "./codebot/merge_rules.pkl"
+    prompt = "def"  # 생성을 시작할 프롬프트
+    max_new_tokens = 200  # 생성할 토큰 수의 상한
+    temperature = 1.0  # 온도 파라미터
+    # 모델과 토크나이저 불러오기
+    tokenizer = BPETokenizer.load_from(tokenizer_path)
+    model = GPT.load_from(model_path, device=device)
+    # 텍스트 생성
+    for i in range(5):
+        print(f"--- 샘플 {i + 1} ---")
+        generated_text = generate(
+            model=model,
+            tokenizer=tokenizer,
+            prompt=prompt,
+            max_token_length=max_new_tokens,
+            temperature=temperature,
+        )
+        print(generated_text)

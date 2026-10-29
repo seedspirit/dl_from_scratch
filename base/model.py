@@ -5,9 +5,9 @@ from pydantic import Field
 from pydantic.dataclasses import dataclass
 from torch import nn
 
-from ffn import FFN
-from multi_head import MultiHeadAttention
-from norm_gelu import LayerNorm
+from base.ffn import FFN
+from base.multi_head import MultiHeadAttention
+from base.norm_gelu import LayerNorm
 
 
 @dataclass
