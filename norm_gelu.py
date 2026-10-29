@@ -3,8 +3,6 @@ import math
 import torch
 import torch.nn as nn
 
-from multi_head import MultiHeadAttention
-
 eps = 1e-5
 
 
@@ -27,6 +25,4 @@ class LayerNorm(nn.Module):
 class GELU(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # tanh 근사식: 0.5x(1 + tanh(√(2/π)(x + 0.044715x³)))
-        return (
-            0.5 * x * (1 + torch.tanh(math.sqrt(2 / math.pi) * (x + 0.044715 * x**3)))
-        )
+        return 0.5 * x * (1 + torch.tanh(math.sqrt(2 / math.pi) * (x + 0.044715 * x**3)))

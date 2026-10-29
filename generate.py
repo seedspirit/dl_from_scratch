@@ -2,9 +2,11 @@ from typing import Protocol
 
 import torch
 
+from model import GPT
+
 
 class Tokenizer(Protocol):
-    end_token_id: str
+    end_token_id: int
 
     def encode(self, text: str) -> list[int]: ...
     def decode(self, ids: list[int]) -> str: ...
@@ -12,7 +14,7 @@ class Tokenizer(Protocol):
 
 @torch.no_grad()
 def generate(
-    model: torch.nn.Module,
+    model: GPT,
     tokenizer: Tokenizer,
     prompt: str,
     max_token_length: int = 50,
@@ -25,9 +27,7 @@ def generate(
     ids = torch.tensor([tokenizer.encode(prompt)], dtype=torch.long, device=device)
 
     generated_ids = ids.clone()  # 생성된 토큰 시퀀스 초기화
-    max_context_len: int = getattr(
-        model, "max_context_len"
-    )  # nn.Module 속성은 타입 검사기가 int로 못 봄
+    max_context_len = model.max_context_len
 
     for _ in range(max_token_length):
         if ids.size(1) > max_context_len:
