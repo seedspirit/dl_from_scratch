@@ -1,12 +1,10 @@
 import torch
-from torch import nn
 import torch.nn.functional as F
+from torch import nn
 
 
 class MultiHeadAttention(nn.Module):
-    def __init__(
-        self, embed_dim: int, n_head: int, head_dim: int, dropout_rate: float
-    ) -> None:
+    def __init__(self, embed_dim: int, n_head: int, head_dim: int, dropout_rate: float) -> None:
         super().__init__()
         self.embed_dim = embed_dim
         self.n_head = n_head

@@ -12,3 +12,5 @@ wheels/
 .cache/
 .ruff_cache/
 codebot/
+# Editor settings
+.vscode/

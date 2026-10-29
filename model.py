@@ -82,9 +82,7 @@ class Block(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         norm1_out = self.norm1(x)  # 레이어 정규화를 통해 입력의 분포를 정규화
-        attention_out = self.attention(
-            norm1_out
-        )  # 멀티 헤드 어텐션을 통해 입력의 상관관계를 학습
+        attention_out = self.attention(norm1_out)  # 멀티 헤드 어텐션을 통해 입력의 상관관계를 학습
         x = x + attention_out  # 잔차 연결로 입력과 어텐션 출력 합쳐 학습 안정화
         norm2_out = self.norm2(x)
         ffn_out = self.ffn(norm2_out)
@@ -105,14 +103,14 @@ class GPT(nn.Module):
         self.dropout = nn.Dropout(config.block.dropout_rate)
 
         # 트랜스포머 블록 초기화
-        self.blocks = nn.ModuleList(
-            [Block(config.block) for _ in range(config.n_layer)]
-        )
+        self.blocks = nn.ModuleList([Block(config.block) for _ in range(config.n_layer)])
 
         # 출력 레이어 초기화
         self.norm = nn.LayerNorm(embed_dim)
         self.unembed = nn.Linear(embed_dim, config.vocab_size, bias=False)
-        self.embed.weight = self.unembed.weight # 임베딩과 출력 레이어의 가중치를 공유하여 파라미터 수 절약
+        self.embed.weight = (
+            self.unembed.weight
+        )  # 임베딩과 출력 레이어의 가중치를 공유하여 파라미터 수 절약
 
         self.apply_init_weights()
 
@@ -151,14 +149,14 @@ class GPT(nn.Module):
 
     def save(self, file_path: str) -> None:
         checkpoint = {
-            'model_state_dict': self.state_dict(),
-            'vocab_size': self.config.vocab_size,
-            'max_context_len': self.config.max_context_len,
-            'embed_dim': self.config.block.embed_dim,
-            'n_head': self.config.block.n_head,
-            'n_layer': self.config.n_layer,
-            'ff_dim': self.config.block.ff_dim,
-            'dropout_rate': self.config.block.dropout_rate,
+            "model_state_dict": self.state_dict(),
+            "vocab_size": self.config.vocab_size,
+            "max_context_len": self.config.max_context_len,
+            "embed_dim": self.config.block.embed_dim,
+            "n_head": self.config.block.n_head,
+            "n_layer": self.config.n_layer,
+            "ff_dim": self.config.block.ff_dim,
+            "dropout_rate": self.config.block.dropout_rate,
         }
         torch.save(checkpoint, file_path)
 
@@ -167,20 +165,20 @@ class GPT(nn.Module):
         checkpoint = torch.load(file_path, map_location=device)
 
         block_config = BlockConfig(
-            embed_dim=checkpoint['embed_dim'],
-            n_head=checkpoint['n_head'],
-            ff_dim=checkpoint['ff_dim'],
-            dropout_rate=checkpoint['dropout_rate'],
+            embed_dim=checkpoint["embed_dim"],
+            n_head=checkpoint["n_head"],
+            ff_dim=checkpoint["ff_dim"],
+            dropout_rate=checkpoint["dropout_rate"],
         )
         config = GPTConfig(
-            vocab_size=checkpoint['vocab_size'],
-            max_context_len=checkpoint['max_context_len'],
-            n_layer=checkpoint['n_layer'],
+            vocab_size=checkpoint["vocab_size"],
+            max_context_len=checkpoint["max_context_len"],
+            n_layer=checkpoint["n_layer"],
             block=block_config,
         )
         model = cls(config)
 
         # 체크포인트에서 로드한 가중치를 모델에 적용
-        model.load_state_dict(checkpoint['model_state_dict'])
-        model.to(device) # 모델을 지정한 디바이스로 이동
+        model.load_state_dict(checkpoint["model_state_dict"])
+        model.to(device)  # 모델을 지정한 디바이스로 이동
         return model
