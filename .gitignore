@@ -14,3 +14,7 @@ wheels/
 codebot/
 # Editor settings
 .vscode/
+
+# Downloaded Storybot datasets and local training artifacts
+storybot/tiny_stories_*.txt
+runs/
