@@ -10,6 +10,7 @@ dependencies = [
     "numpy>=2.5.4",
     "pydantic>=2.14.1",
     "regex>=2026.9.29",
+    "rich>=14",
     "ruff>=0.17.1",
     "torch>=2.14.1",
     "tqdm>=4.70.1",

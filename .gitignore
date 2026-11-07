@@ -19,3 +19,4 @@ codebot/
 storybot/tiny_stories_*.txt
 runs/
 webbot/
+*.json

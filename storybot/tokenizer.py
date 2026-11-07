@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Self
 
 import regex
-from tqdm import tqdm
+from rich.progress import track
 
 from storybot.args import TextEncodingArgs, TokenizerArgs, TokenizerLoadArgs
 from storybot.bpe import MergeRules, PreTokenizer, Vocabulary
@@ -64,7 +64,7 @@ class BPETokenizer:
     def encode(self, args: TextEncodingArgs) -> list[int]:
         segments = self._separator.split(args.text)
         all_ids: list[int] = []
-        progress = tqdm(segments, disable=not args.show_progress)
+        progress = track(segments, description="텍스트 인코딩", disable=not args.show_progress)
         for segment in progress:
             if segment == self.end_token:
                 all_ids.append(self.end_token_id)
