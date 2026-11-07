@@ -18,3 +18,4 @@ codebot/
 # Downloaded Storybot datasets and local training artifacts
 storybot/tiny_stories_*.txt
 runs/
+webbot/
