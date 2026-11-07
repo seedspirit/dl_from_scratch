@@ -5,11 +5,11 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass
 from itertools import pairwise
 
-from tqdm import tqdm
-
 from storybot.args import TokenizationArgs
 from storybot.bpe import BYTE_VOCAB_SIZE, MergeRule, MergeRules, PreTokenizer
 from storybot.corpus import FileChunk
+from storybot.display import step_progress
+from storybot.profiling import profile_time
 
 
 @dataclass(frozen=True)
@@ -22,6 +22,7 @@ class PretokenCountInput:
 class PretokenCounter:
     pretokenizer: PreTokenizer
 
+    @profile_time("PretokenCounter.count_chunk")
     def count_chunk(self, data: PretokenCountInput) -> Counter[str]:
         counts: Counter[str] = Counter()
         for text, _ in data.chunk.iter_documents():
@@ -29,17 +30,22 @@ class PretokenCounter:
         return counts
 
 
+@profile_time("learn_merges")
 def learn_merges(counts: Counter[str], vocab_size: int, show_progress: bool) -> MergeRules:
     num_merges = vocab_size - BYTE_VOCAB_SIZE - 1
     state = _MergeState(counts)
     rules: list[MergeRule] = []
-    for step in tqdm(range(num_merges), desc="Training BPE", disable=not show_progress):
-        pair = state.most_frequent_pair()
-        if pair is None:
-            break
-        rule = MergeRule(*pair, BYTE_VOCAB_SIZE + step)
-        state.apply_merge(rule)
-        rules.append(rule)
+    with step_progress(enabled=show_progress) as progress:
+        task = progress.add_task("BPE 병합 학습", total=num_merges)
+        for step in range(num_merges):
+            pair = state.most_frequent_pair()
+            if pair is None:
+                break
+            rule = MergeRule(*pair, BYTE_VOCAB_SIZE + step)
+            state.apply_merge(rule)
+            rules.append(rule)
+            progress.advance(task)
+        progress.update(task, total=len(rules))
     return MergeRules(entries=tuple(rules))
 
 

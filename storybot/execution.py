@@ -4,9 +4,8 @@ from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
 from multiprocessing import Pool
 
-from tqdm import tqdm
-
 from storybot.args import ExecutionArgs
+from storybot.display import step_progress
 
 
 @contextmanager
@@ -20,5 +19,7 @@ def parallel_map[Input, Result](
         return
     with Pool(processes=min(args.num_processes, len(inputs))) as pool:
         results = pool.imap_unordered(worker, inputs)
-        with tqdm(results, total=len(inputs), disable=not args.show_progress) as progress:
-            yield iter(progress)
+        with step_progress(enabled=args.show_progress) as progress:
+            yield iter(progress.track(results, total=len(inputs), description="빈도 집계 (청크)"))
+        pool.close()
+        pool.join()

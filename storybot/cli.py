@@ -13,6 +13,7 @@ from storybot.args import (
 )
 from storybot.bpe import PreTokenizer
 from storybot.encoding import FileEncoder
+from storybot.profiling import print_profile_summary
 from storybot.storage import FrequencyCache
 from storybot.tokenizer import BPETokenizer
 from storybot.training import BPETrainer
@@ -60,6 +61,8 @@ def train(config: Path) -> None:
         click.echo(f"Saved tokenizer: {train_args.model_path} (vocabulary: {tokenizer.vocab_size})")
     except (OSError, ValueError) as error:
         raise click.ClickException(str(error)) from error
+    finally:
+        print_profile_summary()
 
 
 @main.command()
@@ -82,3 +85,5 @@ def encode(config: Path) -> None:
         click.echo(f"Encoded file: {encoding.destination} (tokens: {count})")
     except (OSError, ValueError) as error:
         raise click.ClickException(str(error)) from error
+    finally:
+        print_profile_summary()
